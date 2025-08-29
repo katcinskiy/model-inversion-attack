@@ -45,8 +45,8 @@ class InversionModel(nn.Module):
         self.proj = nn.Linear(input_features_d, model.model.encoder.embed_tokens.embedding_dim)
 
         lora_cfg = LoraConfig(
-            r=4,
-            lora_alpha=16,
+            r=32,
+            lora_alpha=64,
             lora_dropout=0.1,
             bias="none",
             task_type="SEQ_2_SEQ_LM",
@@ -65,6 +65,28 @@ class InversionModel(nn.Module):
             labels=labels,
             **kwargs
         )
+    
+    def generate(self, encoder_embeds, encoder_attention_mask, **generation_kwargs):
+        transformed_embeds = self.proj(encoder_embeds)
+        
+        with torch.no_grad():
+            generated_ids = self.model.generate(
+                inputs_embeds=transformed_embeds,
+                attention_mask=encoder_attention_mask,
+                **generation_kwargs
+            )
+        
+        return generated_ids
+    
+    def generate_text(self, encoder_embeds, encoder_attention_mask, **generation_kwargs):
+        generated_ids = self.generate(encoder_embeds, encoder_attention_mask, **generation_kwargs)
+        
+        generated_texts = self.tokenizer.batch_decode(
+            generated_ids, 
+            skip_special_tokens=True
+        )
+        
+        return generated_texts
 
 
 class WrapperModel(nn.Module):
@@ -82,3 +104,8 @@ class WrapperModel(nn.Module):
             encoder_attention_mask=bb_attention_mask,
             labels=labels,
         )
+    
+    def state_dict(self, destination=None, prefix='', keep_vars=False):
+        """Only return the inversion_model's state_dict"""
+        return self.inversion_model.state_dict(destination, prefix, keep_vars)
+        

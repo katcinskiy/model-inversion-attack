@@ -1,0 +1,6 @@
+# @package _global_
+models:
+  layer_embeds_to_return: 4
+
+training:
+  output_dir: "trainer_after_4_layer"
